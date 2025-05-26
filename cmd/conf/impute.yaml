@@ -1,0 +1,25 @@
+# 缺失值补全配置文件
+defaults:
+  - _self_
+  - datamodule: ecg
+
+# 模型相关
+model_id: null  # 必须提供，例如: "version_0"
+
+# 缺失值设置
+missing_rate: 0.2  # 缺失率 (0.0 - 1.0)
+missing_pattern: "random"  # 缺失模式: "random", "block", "channel"
+
+# 扩散净化参数
+diffusion_steps: 100  # 扩散步数
+noise_level: 0.1  # 噪声水平 (对应DiffPure中的t*)
+preserve_observed: true  # 是否保持观测值不变
+max_iterations: 1  # 最大迭代次数
+
+# 实验设置
+max_batches: 10  # 最大处理批次数
+num_visualization_samples: 3  # 可视化样本数
+create_visualizations: true  # 是否创建可视化
+
+# 输出设置
+output_dir: "imputation_results" 
