@@ -4,7 +4,7 @@ defaults:
   - datamodule: ecg
 
 # 模型相关
-model_id: null  # 必须提供，例如: "version_0"
+model_id: rep0q4i1  # 必须提供，例如: "version_0"
 
 # 缺失值设置
 missing_rate: 0.2  # 缺失率 (0.0 - 1.0)
