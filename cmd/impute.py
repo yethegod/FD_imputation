@@ -10,6 +10,7 @@ import hydra
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import yaml
 from pathlib import Path
 from omegaconf import DictConfig
 import logging
@@ -30,17 +31,17 @@ def main(cfg: DictConfig) -> None:
     
     # 检查模型ID
     if not cfg.model_id:
-        raise ValueError("请提供model_id参数")
+        raise ValueError("Please provide model_id parameter")
     
     # 加载预训练模型
     model_path = Path("lightning_logs") / cfg.model_id / "checkpoints"
     checkpoint_files = list(model_path.glob("*.ckpt"))
     
     if not checkpoint_files:
-        raise FileNotFoundError(f"在 {model_path} 中找不到检查点文件")
+        raise FileNotFoundError(f"No checkpoint files found in {model_path}")
     
     checkpoint_path = checkpoint_files[0]  # 使用第一个检查点
-    logger.info(f"加载模型: {checkpoint_path}")
+    logger.info(f"Loading model: {checkpoint_path}")
     
     # 加载模型
     score_model = ScoreModule.load_from_checkpoint(checkpoint_path)
@@ -66,11 +67,11 @@ def main(cfg: DictConfig) -> None:
         max_iterations=cfg.max_iterations
     )
     
-    logger.info(f"开始补全实验:")
-    logger.info(f"  - 缺失率: {cfg.missing_rate}")
-    logger.info(f"  - 缺失模式: {cfg.missing_pattern}")
-    logger.info(f"  - 噪声水平: {cfg.noise_level}")
-    logger.info(f"  - 扩散步数: {cfg.diffusion_steps}")
+    logger.info(f"Starting imputation experiment:")
+    logger.info(f"  - Missing rate: {cfg.missing_rate}")
+    logger.info(f"  - Missing pattern: {cfg.missing_pattern}")
+    logger.info(f"  - Noise level: {cfg.noise_level}")
+    logger.info(f"  - Diffusion steps: {cfg.diffusion_steps}")
     
     # 收集结果
     all_metrics = []
@@ -83,7 +84,7 @@ def main(cfg: DictConfig) -> None:
             
         X_true = batch["X"].to(device)
         
-        logger.info(f"处理批次 {batch_idx + 1}/{min(len(test_loader), cfg.max_batches)}")
+        logger.info(f"Processing batch {batch_idx + 1}/{min(len(test_loader), cfg.max_batches)}")
         
         # 执行补全
         X_imputed, mask = imputer.impute(
@@ -113,7 +114,7 @@ def main(cfg: DictConfig) -> None:
     for key in all_metrics[0].keys():
         avg_metrics[key] = np.mean([m[key] for m in all_metrics])
     
-    logger.info("\n=== 平均性能指标 ===")
+    logger.info("\n=== Average Performance Metrics ===")
     for key, value in avg_metrics.items():
         logger.info(f"{key.upper()}: {value:.6f}")
     
@@ -121,15 +122,18 @@ def main(cfg: DictConfig) -> None:
     results_dir = Path("imputation_results") / cfg.model_id
     results_dir.mkdir(parents=True, exist_ok=True)
     
-    # 保存指标
-    torch.save(avg_metrics, results_dir / "metrics.pt")
+    # 保存指标为YAML格式
+    with open(results_dir / "impute_result.yaml", "w", encoding="utf-8") as f:
+        yaml.dump(avg_metrics, f, default_flow_style=False, allow_unicode=False)
+    
+    # 保存样本数据（保持原来的pt格式）
     torch.save(all_samples, results_dir / "samples.pt")
     
     # 创建可视化
     if cfg.create_visualizations and all_samples:
         create_imputation_visualizations(all_samples, results_dir, cfg)
     
-    logger.info(f"结果已保存到: {results_dir}")
+    logger.info(f"Results saved to: {results_dir}")
 
 
 def create_imputation_visualizations(samples, results_dir, cfg):
@@ -151,18 +155,18 @@ def create_imputation_visualizations(samples, results_dir, cfg):
         # 子图1: 原始vs补全
         plt.subplot(2, 2, 1)
         time_steps = np.arange(len(x_true))
-        plt.plot(time_steps, x_true, 'b-', label='真实值', alpha=0.7)
-        plt.plot(time_steps, x_imputed, 'r--', label='补全值', alpha=0.7)
+        plt.plot(time_steps, x_true, 'b-', label='Ground Truth', alpha=0.7)
+        plt.plot(time_steps, x_imputed, 'r--', label='Imputed', alpha=0.7)
         
         # 标记缺失值位置
         missing_indices = np.where(mask_1d == 0)[0]
         if len(missing_indices) > 0:
             plt.scatter(missing_indices, x_imputed[missing_indices], 
-                       c='red', s=20, label='补全点', zorder=5)
+                       c='red', s=20, label='Imputed Points', zorder=5)
         
-        plt.title('时域补全结果')
-        plt.xlabel('时间步')
-        plt.ylabel('值')
+        plt.title('Time Domain Imputation Results')
+        plt.xlabel('Time Step')
+        plt.ylabel('Value')
         plt.legend()
         plt.grid(True, alpha=0.3)
         
@@ -173,9 +177,9 @@ def create_imputation_visualizations(samples, results_dir, cfg):
         if len(missing_indices) > 0:
             plt.scatter(missing_indices, error[missing_indices], 
                        c='red', s=20, zorder=5)
-        plt.title('绝对误差')
-        plt.xlabel('时间步')
-        plt.ylabel('|真实值 - 补全值|')
+        plt.title('Absolute Error')
+        plt.xlabel('Time Step')
+        plt.ylabel('|Ground Truth - Imputed|')
         plt.grid(True, alpha=0.3)
         
         # 子图3: 频域比较
@@ -184,22 +188,22 @@ def create_imputation_visualizations(samples, results_dir, cfg):
         X_imputed_freq = dft(X_imputed[0:1]).squeeze().numpy()
         
         freq_bins = np.arange(len(X_true_freq))
-        plt.plot(freq_bins, X_true_freq[:, 0], 'b-', label='真实值(频域)', alpha=0.7)
-        plt.plot(freq_bins, X_imputed_freq[:, 0], 'r--', label='补全值(频域)', alpha=0.7)
-        plt.title('频域比较')
-        plt.xlabel('频率分量')
-        plt.ylabel('幅度')
+        plt.plot(freq_bins, X_true_freq[:, 0], 'b-', label='Ground Truth (Freq)', alpha=0.7)
+        plt.plot(freq_bins, X_imputed_freq[:, 0], 'r--', label='Imputed (Freq)', alpha=0.7)
+        plt.title('Frequency Domain Comparison')
+        plt.xlabel('Frequency Component')
+        plt.ylabel('Magnitude')
         plt.legend()
         plt.grid(True, alpha=0.3)
         
         # 子图4: 缺失模式
         plt.subplot(2, 2, 4)
         plt.plot(time_steps, mask_1d, 'k-', linewidth=2)
-        plt.fill_between(time_steps, 0, mask_1d, alpha=0.3, color='blue', label='观测值')
-        plt.fill_between(time_steps, 0, 1-mask_1d, alpha=0.3, color='red', label='缺失值')
-        plt.title(f'缺失模式 (缺失率: {(1-mask_1d.mean()):.1%})')
-        plt.xlabel('时间步')
-        plt.ylabel('掩码值')
+        plt.fill_between(time_steps, 0, mask_1d, alpha=0.3, color='blue', label='Observed')
+        plt.fill_between(time_steps, 0, 1-mask_1d, alpha=0.3, color='red', label='Missing')
+        plt.title(f'Missing Pattern (Missing Rate: {(1-mask_1d.mean()):.1%})')
+        plt.xlabel('Time Step')
+        plt.ylabel('Mask Value')
         plt.legend()
         plt.grid(True, alpha=0.3)
         

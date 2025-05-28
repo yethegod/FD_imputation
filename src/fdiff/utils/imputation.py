@@ -126,7 +126,7 @@ class FrequencyDomainImputer:
             # 1. 转换到频域
             X_freq = dft(X_corrupted)
             
-            # 2. 添加噪声（完全按照训练时SDE的标准流程）
+            # 2. 添加噪声
             # 计算噪声时间步对应的参数
             t = torch.full(
                 (X_freq.shape[0],), 
