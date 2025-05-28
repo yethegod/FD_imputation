@@ -81,10 +81,6 @@ class FrequencyDomainImputer:
                     start_idx = torch.randint(0, max_len - block_length + 1, (1,)).item()
                     mask[b, start_idx:start_idx + block_length, c] = 0
                     
-        elif pattern == "channel":
-            # 整个通道缺失
-            missing_channels = torch.rand(batch_size, 1, n_channels) < missing_rate
-            mask[missing_channels.expand_as(mask)] = 0
             
         return mask
     
