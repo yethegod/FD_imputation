@@ -182,7 +182,7 @@ class FrequencyDomainImputer:
                 X_current = output.prev_sample
             
             # 4. 转换回时域
-            X_purified = idft(X_current)
+            X_purified = idft(X_current.cpu()).to(X_current.device)
             
             # 5. 如果需要，保持观测值不变
             if self.preserve_observed and mask is not None:
