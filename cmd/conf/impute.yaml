@@ -1,4 +1,10 @@
 # 缺失值补全配置文件
+
+# 全局变量
+random_seed: 42
+fourier_transform: true  # 默认在频域训练
+standardize: true
+
 defaults:
   - _self_
   - datamodule: ecg
