@@ -90,7 +90,8 @@ def main(cfg: DictConfig) -> None:
         X_imputed, mask = imputer.impute(
             X_true,
             missing_rate=cfg.missing_rate,
-            missing_pattern=cfg.missing_pattern
+            missing_pattern=cfg.missing_pattern,
+            input_is_frequency_domain=cfg.fourier_transform  # 根据配置确定输入域
         )
         
         # 评估性能
