@@ -123,7 +123,8 @@ class FrequencyDomainImputer:
         self.score_model.eval()
         
         with torch.no_grad():
-            # 1. 转换到频域
+            # 1. 将时域缺失数据转换到频域进行处理
+            # apply_missing_pattern返回的总是时域数据，所以总是需要dft
             X_freq = dft(X_corrupted)
             
             # 2. 添加噪声

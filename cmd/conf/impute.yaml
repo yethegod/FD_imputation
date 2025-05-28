@@ -2,7 +2,7 @@
 
 # 全局变量
 random_seed: 42
-fourier_transform: true  # 默认在频域训练
+fourier_transform: true  # 数据模块需要知道是否转换到频域
 standardize: true
 
 defaults:

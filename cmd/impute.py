@@ -64,8 +64,7 @@ def main(cfg: DictConfig) -> None:
         diffusion_steps=cfg.diffusion_steps,
         noise_level=cfg.noise_level,
         preserve_observed=cfg.preserve_observed,
-        max_iterations=cfg.max_iterations,
-        fourier_transform=cfg.fourier_transform
+        max_iterations=cfg.max_iterations
     )
     
     logger.info(f"Starting imputation experiment:")
