@@ -112,7 +112,7 @@ def main(cfg: DictConfig) -> None:
     # 计算平均指标
     avg_metrics = {}
     for key in all_metrics[0].keys():
-        avg_metrics[key] = np.mean([m[key] for m in all_metrics])
+        avg_metrics[key] = float(np.mean([m[key] for m in all_metrics]))  # 确保转换为 Python float
     
     logger.info("\n=== Average Performance Metrics ===")
     for key, value in avg_metrics.items():
@@ -184,10 +184,15 @@ def create_imputation_visualizations(samples, results_dir, cfg):
         
         # 子图3: 频域比较
         plt.subplot(2, 2, 3)
-        X_true_freq = dft(X_true[0:1]).squeeze().numpy()
-        X_imputed_freq = dft(X_imputed[0:1]).squeeze().numpy()
+        X_true_freq = dft(X_true[0:1]).squeeze(0).numpy()  # 只移除批次维度
+        X_imputed_freq = dft(X_imputed[0:1]).squeeze(0).numpy()  # 只移除批次维度
         
-        freq_bins = np.arange(len(X_true_freq))
+        # 如果只有一个通道，确保是2维数组
+        if X_true_freq.ndim == 1:
+            X_true_freq = X_true_freq[:, None]
+            X_imputed_freq = X_imputed_freq[:, None]
+        
+        freq_bins = np.arange(X_true_freq.shape[0])
         plt.plot(freq_bins, X_true_freq[:, 0], 'b-', label='Ground Truth (Freq)', alpha=0.7)
         plt.plot(freq_bins, X_imputed_freq[:, 0], 'r--', label='Imputed (Freq)', alpha=0.7)
         plt.title('Frequency Domain Comparison')
