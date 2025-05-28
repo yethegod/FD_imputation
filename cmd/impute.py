@@ -82,7 +82,7 @@ def main(cfg: DictConfig) -> None:
         if batch_idx >= cfg.max_batches:
             break
             
-        X_true = batch["X"].to(device)
+        X_true = batch.X.to(device)
         
         logger.info(f"Processing batch {batch_idx + 1}/{min(len(test_loader), cfg.max_batches)}")
         
