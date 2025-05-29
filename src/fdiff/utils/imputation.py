@@ -88,18 +88,18 @@ class FrequencyDomainImputer:
         self, 
         X: torch.Tensor, 
         mask: torch.Tensor, 
-        fill_value: float = 0.0
+        fill_value: Optional[float] = None
     ) -> torch.Tensor:
         """
-        根据掩码应用缺失模式
+        应用缺失模式到数据
         
         Args:
-            X: 原始时间序列
-            mask: 缺失值掩码
-            fill_value: 填充值
+            X: 完整数据 (batch_size, seq_len)
+            mask: 观测掩码 (1表示观测，0表示缺失)
+            fill_value: 填充值，如果为None则使用观测值的均值
             
         Returns:
-            X_missing: 带缺失值的时间序列
+            X_corrupted: 带缺失值的数据
         """
         X_missing = X.clone()
         X_missing[mask == 0] = fill_value
@@ -188,15 +188,8 @@ class FrequencyDomainImputer:
             # 4. 返回频域数据
             X_purified = X_current
             
-            # 5. 如果需要，保持观测值不变（在频域）
-            if self.preserve_observed and mask is not None:
-                # 如果mask是基于时域的，需要相应调整
-                if input_is_frequency_domain:
-                    X_purified = X_purified * (1 - mask) + X_corrupted * mask
-                else:
-                    # 将时域mask应用到频域（这是一个近似）
-                    X_corrupted_freq = dft(X_corrupted) if not input_is_frequency_domain else X_corrupted
-                    X_purified = X_purified * (1 - mask) + X_corrupted_freq * mask
+            # 注意：不在频域中应用preserve_observed，因为这在数学上是错误的
+            # DFT是全局变换，每个频域分量包含所有时域点的信息
             
             return X_purified
     
@@ -222,13 +215,13 @@ class FrequencyDomainImputer:
         for iteration in range(self.max_iterations):
             print(f"Imputation iteration {iteration + 1}/{self.max_iterations}")
             
-            # 频域净化
+            # 频域净化 - 不应用mask，让模型自由学习
             X_purified = self.frequency_domain_purification(
-                X_current, mask, input_is_frequency_domain=True  # 内部处理总是频域
+                X_current, mask=None, input_is_frequency_domain=True
             )
             
-            # 更新当前估计（只更新缺失值部分）
-            X_current = X_current * mask + X_purified * (1 - mask)
+            # 在频域中不应用mask，让扩散模型自由运作
+            X_current = X_purified
             
         return X_current
     
@@ -282,11 +275,22 @@ class FrequencyDomainImputer:
         # 执行补全（在频域）
         X_imputed_freq = self.iterative_imputation(X_missing, mask, input_is_frequency_domain)
         
-        # 根据输入域返回相应域的结果
-        if input_is_frequency_domain:
-            return X_imputed_freq, mask
-        else:
-            return idft(X_imputed_freq.cpu()).to(X_imputed_freq.device), mask
+        # 将频域补全结果转换回时域
+        X_imputed_time = idft(X_imputed_freq.cpu()).to(X_imputed_freq.device)
+        
+        # 在时域应用preserve_observed（不管输入是什么域）
+        if self.preserve_observed and mask is not None:
+            # 确保有时域的真实数据用于preserve_observed
+            if input_is_frequency_domain:
+                X_true_time = idft(X.cpu()).to(X.device)
+            else:
+                X_true_time = X
+            
+            # 在时域应用preserve_observed：保持观测值，只更新缺失值
+            X_imputed_time = X_imputed_time * (1 - mask) + X_true_time * mask
+        
+        # 统一返回时域的补全结果
+        return X_imputed_time, mask
 
 
 def evaluate_imputation_performance(
