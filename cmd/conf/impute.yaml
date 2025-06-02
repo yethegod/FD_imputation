@@ -18,9 +18,9 @@ missing_pattern: "random"  # 缺失模式: "random", "block", "channel"
 
 # 扩散净化参数
 diffusion_steps: 1000  # 扩散步数
-noise_level: 0.3  # 噪声水平 (对应DiffPure中的t*)
+noise_level: 0.15  # 噪声水平 (对应DiffPure中的t*)
 preserve_observed: true  # 是否保持观测值不变
-max_iterations: 1  # 最大迭代次数
+max_iterations: 3  # 最大迭代次数
 
 # 实验设置
 max_batches: 10  # 最大处理批次数
